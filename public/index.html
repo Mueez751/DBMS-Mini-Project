@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkyPulse | Airline Fare Intelligence Platform</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <!-- Header / Navigation -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <div class="brand-logo">
+        <i class="fa-solid fa-plane-departure"></i>
+      </div>
+      <div>
+        <div class="brand-title">SkyPulse</div>
+        <div class="brand-sub">Fare Intelligence & Analytics Platform</div>
+      </div>
+    </div>
+
+    <nav class="nav-links">
+      <button class="nav-tab active" data-tab="tab-search">
+        <i class="fa-solid fa-magnifying-glass"></i> Search Fares
+      </button>
+      <button class="nav-tab" data-tab="tab-analytics">
+        <i class="fa-solid fa-chart-line"></i> Analytics & Heatmap
+      </button>
+      <button class="nav-tab" data-tab="tab-watchlists">
+        <i class="fa-solid fa-bell"></i> Watchlists & Alerts
+        <span class="badge-alert-count" id="navAlertBadge">0</span>
+      </button>
+      <button class="nav-tab admin-only" data-tab="tab-admin" id="navAdminTab" style="display: none;">
+        <i class="fa-solid fa-shield-halved"></i> Admin Console
+      </button>
+    </nav>
+
+    <div class="nav-user">
+      <div id="authLoggedOut" class="auth-buttons">
+        <button class="btn btn-outline" id="btnOpenLoginModal">
+          <i class="fa-solid fa-right-to-bracket"></i> Sign In
+        </button>
+      </div>
+      <div id="authLoggedIn" class="user-pill" style="display: none;">
+        <div class="user-avatar" id="userAvatar">U</div>
+        <div class="user-meta">
+          <div class="user-email" id="userEmailText">user@example.com</div>
+          <span class="user-role-badge" id="userRoleBadge">customer</span>
+        </div>
+        <button class="btn-icon" id="btnLogout" title="Sign Out">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="main-container">
+    
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- TAB 1: Search & Live Fares -->
+    <section id="tab-search" class="tab-content active">
+      <div class="hero-card">
+        <div class="hero-header">
+          <h2>Find & Track Flight Prices</h2>
+          <p>Real-time flight search querying PostgreSQL indexes with historical price tracking.</p>
+        </div>
+
+        <form id="fareSearchForm" class="search-grid">
+          <div class="form-group">
+            <label for="searchOrigin"><i class="fa-solid fa-plane-departure"></i> Origin</label>
+            <select id="searchOrigin" class="form-control" required>
+              <option value="">Select Origin...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="searchDest"><i class="fa-solid fa-plane-arrival"></i> Destination</label>
+            <select id="searchDest" class="form-control" required>
+              <option value="">Select Destination...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="searchCabin"><i class="fa-solid fa-couch"></i> Cabin Class</label>
+            <select id="searchCabin" class="form-control">
+              <option value="economy">Economy</option>
+              <option value="premium_economy">Premium Economy</option>
+              <option value="business">Business</option>
+              <option value="first">First Class</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="searchStartDate"><i class="fa-regular fa-calendar"></i> From Date</label>
+            <input type="date" id="searchStartDate" class="form-control">
+          </div>
+
+          <div class="form-group">
+            <label for="searchEndDate"><i class="fa-regular fa-calendar"></i> To Date</label>
+            <input type="date" id="searchEndDate" class="form-control">
+          </div>
+
+          <div class="form-group form-action">
+            <button type="submit" class="btn btn-primary btn-block">
+              <i class="fa-solid fa-magnifying-glass"></i> Search Flights
+            </button>
+          </div>
+        </form>
+
+        <div class="quick-routes-bar" id="quickRoutesBar">
+          <span class="quick-label">Popular Routes:</span>
+          <!-- Dynamic route chips -->
+        </div>
+      </div>
+
+      <!-- Search Results Area -->
+      <div class="results-section">
+        <div class="section-header">
+          <div>
+            <h3>Search Results</h3>
+            <span class="subtext" id="searchResultsCount">Showing latest fares</span>
+          </div>
+          <button class="btn btn-secondary" id="btnCreateWatchlistFromSearch">
+            <i class="fa-solid fa-plus"></i> Set Price Alert for this Route
+          </button>
+        </div>
+
+        <div id="fareResultsList" class="fare-cards-grid">
+          <div class="loading-state">
+            <i class="fa-solid fa-spinner fa-spin"></i> Loading fares...
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: Analytics & Heatmap -->
+    <section id="tab-analytics" class="tab-content">
+      <div class="analytics-filter-card">
+        <div class="filter-row">
+          <div class="form-group inline">
+            <label for="analyticsRoute"><i class="fa-solid fa-route"></i> Select Route:</label>
+            <select id="analyticsRoute" class="form-control"></select>
+          </div>
+
+          <div class="form-group inline">
+            <label for="analyticsCabin"><i class="fa-solid fa-couch"></i> Cabin:</label>
+            <select id="analyticsCabin" class="form-control">
+              <option value="economy">Economy</option>
+              <option value="premium_economy">Premium Economy</option>
+              <option value="business">Business</option>
+              <option value="first">First Class</option>
+            </select>
+          </div>
+
+          <div class="form-group inline">
+            <label for="analyticsDays"><i class="fa-regular fa-clock"></i> Days Ahead:</label>
+            <select id="analyticsDays" class="form-control">
+              <option value="30">Next 30 Days</option>
+              <option value="60">Next 60 Days</option>
+            </select>
+          </div>
+
+          <button class="btn btn-primary" id="btnRefreshAnalytics">
+            <i class="fa-solid fa-rotate"></i> Update Charts
+          </button>
+        </div>
+      </div>
+
+      <!-- Charts Grid -->
+      <div class="charts-grid">
+        <!-- Price Trend Chart (Window Functions: 7-day rolling avg) -->
+        <div class="card chart-card">
+          <div class="card-header">
+            <div>
+              <h4><i class="fa-solid fa-chart-line"></i> Price Trend & 7-Day Moving Average</h4>
+              <p class="subtext">Computed using PostgreSQL Stored Function <code>get_price_trend()</code> with Window Functions</p>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chartPriceTrend"></canvas>
+          </div>
+        </div>
+
+        <!-- Cheapest Travel Dates Bar Chart -->
+        <div class="card chart-card">
+          <div class="card-header">
+            <div>
+              <h4><i class="fa-solid fa-calendar-check"></i> Cheapest Dates to Fly</h4>
+              <p class="subtext">Computed using Stored Function <code>get_cheapest_dates()</code></p>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="chartCheapestDates"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Materialized View Heatmap -->
+      <div class="card heatmap-card">
+        <div class="card-header">
+          <div>
+            <h4><i class="fa-solid fa-fire"></i> Monthly Route Price Heatmap</h4>
+            <p class="subtext">Pre-aggregated Materialized View <code>mv_monthly_route_heatmap</code> for zero-latency dashboard queries</p>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table" id="heatmapTable">
+            <thead>
+              <tr>
+                <th>Route</th>
+                <th>Month</th>
+                <th>Cabin</th>
+                <th>Observations</th>
+                <th>Avg Price</th>
+                <th>Lowest Price</th>
+                <th>Highest Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="7" class="text-center">Loading heatmap...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: Watchlists & Price-Drop Alerts -->
+    <section id="tab-watchlists" class="tab-content">
+      <div class="watchlist-split-view">
+        <!-- Left: Active Watchlists -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-solid fa-binoculars"></i> Active Flight Watchlists</h3>
+              <p class="subtext">Database triggers monitor these routes and fire automated alerts on price drops.</p>
+            </div>
+            <button class="btn btn-primary btn-sm" id="btnOpenCreateWatchlistModal">
+              <i class="fa-solid fa-plus"></i> New Watchlist
+            </button>
+          </div>
+
+          <div id="watchlistsList" class="watchlist-items">
+            <div class="loading-state">Loading watchlists...</div>
+          </div>
+        </div>
+
+        <!-- Right: Trigger-Generated Alerts Feed -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3><i class="fa-solid fa-bolt"></i> Real-Time Price Drop Alerts</h3>
+              <p class="subtext">Trigger <code>trg_fare_check_watchlists</code> generated alerts for your target prices</p>
+            </div>
+            <span class="badge badge-success" id="alertTotalCountBadge">0 Alerts</span>
+          </div>
+
+          <div id="alertsList" class="alerts-feed">
+            <div class="loading-state">Loading alerts...</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: Admin Console (Role-Based Access Control #11) -->
+    <section id="tab-admin" class="tab-content">
+      <div class="admin-grid">
+        <!-- Telemetry Stats Cards -->
+        <div class="stats-overview">
+          <div class="stat-box">
+            <div class="stat-icon icon-blue"><i class="fa-solid fa-plane"></i></div>
+            <div class="stat-details">
+              <span class="stat-title">Airports & Routes</span>
+              <span class="stat-value" id="statAirportsRoutes">-</span>
+            </div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-icon icon-emerald"><i class="fa-solid fa-database"></i></div>
+            <div class="stat-details">
+              <span class="stat-title">Fare Snapshots</span>
+              <span class="stat-value" id="statSnapshots">-</span>
+            </div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-icon icon-amber"><i class="fa-solid fa-bell"></i></div>
+            <div class="stat-details">
+              <span class="stat-title">Trigger Alerts</span>
+              <span class="stat-value" id="statAlerts">-</span>
+            </div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-icon icon-purple"><i class="fa-solid fa-leaf"></i></div>
+            <div class="stat-details">
+              <span class="stat-title">MongoDB Payloads</span>
+              <span class="stat-value" id="statMongoPayloads">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Action Panels -->
+        <div class="admin-actions-split">
+          <!-- Ingest Fare Snapshot via Stored Procedure -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h4><i class="fa-solid fa-upload"></i> Stored Procedure Ingestion</h4>
+                <p class="subtext">Executes <code>CALL sp_record_fare_snapshot(...)</code> & tests automated trigger response</p>
+              </div>
+            </div>
+
+            <form id="adminIngestForm" class="admin-form">
+              <div class="form-group">
+                <label for="ingestRoute">Route</label>
+                <select id="ingestRoute" class="form-control" required></select>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="ingestAirline">Airline</label>
+                  <select id="ingestAirline" class="form-control" required></select>
+                </div>
+                <div class="form-group">
+                  <label for="ingestCabin">Cabin Class</label>
+                  <select id="ingestCabin" class="form-control" required>
+                    <option value="economy">Economy</option>
+                    <option value="premium_economy">Premium Economy</option>
+                    <option value="business">Business</option>
+                    <option value="first">First Class</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="ingestPrice">Price ($)</label>
+                  <input type="number" id="ingestPrice" class="form-control" step="0.01" min="1" placeholder="149.99" required>
+                </div>
+                <div class="form-group">
+                  <label for="ingestDate">Flight Date</label>
+                  <input type="date" id="ingestDate" class="form-control" required>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="ingestMongoOid">Mongo Document Reference (ObjectId)</label>
+                <input type="text" id="ingestMongoOid" class="form-control" maxlength="24" value="000000000000000000000064" required>
+                <small class="helper-text">Must satisfy <code>chk_mongo_oid</code> constraint (24 hex characters)</small>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-block">
+                <i class="fa-solid fa-bolt"></i> Ingest Snapshot & Trigger Alerts
+              </button>
+            </form>
+
+            <div id="ingestResultNotice" class="alert-box" style="display: none; margin-top: 1rem;"></div>
+          </div>
+
+          <!-- Heatmap Maintenance & NoSQL Aggregations -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h4><i class="fa-solid fa-gears"></i> Database Maintenance & NoSQL Analytics</h4>
+                <p class="subtext">Materialized view refresh and MongoDB aggregation queries</p>
+              </div>
+            </div>
+
+            <div class="admin-subcard">
+              <h5>Materialized View Maintenance</h5>
+              <p>Recomputes <code>mv_monthly_route_heatmap</code> concurrently via procedure.</p>
+              <button class="btn btn-secondary btn-block" id="btnAdminRefreshHeatmap">
+                <i class="fa-solid fa-arrows-rotate"></i> CALL sp_refresh_heatmap()
+              </button>
+            </div>
+
+            <div class="admin-subcard" style="margin-top: 1rem;">
+              <h5>MongoDB NoSQL Aggregations (#7)</h5>
+              <p>Executes multi-stage aggregation pipeline across raw Amadeus scrape payloads.</p>
+              <button class="btn btn-outline btn-block" id="btnAdminRunMongoAggs">
+                <i class="fa-solid fa-chart-pie"></i> Run Mongo Aggregations
+              </button>
+
+              <div id="mongoAggResults" class="mongo-results-wrapper" style="display: none; margin-top: 1rem;">
+                <pre class="json-code" id="mongoAggJson"></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Login / Register Modal -->
+  <div id="loginModal" class="modal">
+    <div class="modal-content">
+      <button class="modal-close" id="btnCloseLoginModal">&times;</button>
+      <div class="modal-header">
+        <h3 id="authModalTitle">Sign In to SkyPulse</h3>
+        <p>Access your flight watchlists, custom alerts, or administrative tools.</p>
+      </div>
+
+      <!-- Quick Preset Buttons for Evaluation Demo -->
+      <div class="demo-login-box">
+        <span class="demo-label"><i class="fa-solid fa-key"></i> Quick Demo Logins:</span>
+        <div class="demo-buttons-row">
+          <button type="button" class="btn-demo" data-email="admin@airfare.local" data-pass="Admin@12345" data-role="Admin">
+            <i class="fa-solid fa-shield"></i> Admin
+          </button>
+          <button type="button" class="btn-demo" data-email="alice@example.com" data-pass="Alice@12345" data-role="Alice">
+            <i class="fa-solid fa-user"></i> Alice (Customer)
+          </button>
+          <button type="button" class="btn-demo" data-email="bob@example.com" data-pass="Bob@12345" data-role="Bob">
+            <i class="fa-solid fa-user"></i> Bob (Customer)
+          </button>
+        </div>
+      </div>
+
+      <form id="authForm">
+        <div class="form-group">
+          <label for="authEmail">Email Address</label>
+          <input type="email" id="authEmail" class="form-control" placeholder="user@example.com" required>
+        </div>
+
+        <div class="form-group">
+          <label for="authPassword">Password</label>
+          <input type="password" id="authPassword" class="form-control" placeholder="Enter password" required>
+        </div>
+
+        <div class="form-group" id="authRoleGroup" style="display: none;">
+          <label for="authRole">Account Role</label>
+          <select id="authRole" class="form-control">
+            <option value="customer">Customer</option>
+            <option value="admin">Administrator</option>
+          </select>
+        </div>
+
+        <div id="authErrorMsg" class="alert alert-danger" style="display: none;"></div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="btnSubmitAuth">
+          Sign In
+        </button>
+
+        <div class="auth-toggle">
+          <span id="authToggleText">Need an account?</span>
+          <a href="#" id="authToggleLink">Create Account</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Create Watchlist Modal -->
+  <div id="createWatchlistModal" class="modal">
+    <div class="modal-content">
+      <button class="modal-close" id="btnCloseWatchlistModal">&times;</button>
+      <div class="modal-header">
+        <h3>Create Price Alert Watchlist</h3>
+        <p>Set your target price. The database trigger will alert you when a fare drops at or below your target.</p>
+      </div>
+
+      <form id="createWatchlistForm">
+        <div class="form-group">
+          <label for="modalWatchlistRoute">Route</label>
+          <select id="modalWatchlistRoute" class="form-control" required></select>
+        </div>
+
+        <div class="form-group">
+          <label for="modalWatchlistCabin">Cabin Class</label>
+          <select id="modalWatchlistCabin" class="form-control" required>
+            <option value="economy">Economy</option>
+            <option value="premium_economy">Premium Economy</option>
+            <option value="business">Business</option>
+            <option value="first">First Class</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="modalWatchlistTarget">Target Price ($)</label>
+          <input type="number" id="modalWatchlistTarget" class="form-control" step="0.01" min="1" placeholder="e.g. 175.00" required>
+          <small class="helper-text">Constraint <code>chk_watch_price</code> requires price > 0</small>
+        </div>
+
+        <div id="watchlistModalError" class="alert alert-danger" style="display: none;"></div>
+
+        <button type="submit" class="btn btn-primary btn-block">
+          <i class="fa-solid fa-bell"></i> Activate Watchlist Tracker
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
+

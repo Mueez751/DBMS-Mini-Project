@@ -1,0 +1,25 @@
+{
+  "name": "dbms-project",
+  "version": "1.0.0",
+  "description": "PostgreSQL (relational core) + MongoDB (raw Amadeus payloads).",
+  "main": "05_mongo_setup.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node test_api.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.10",
+    "express": "^5.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongodb": "^7.8.0",
+    "pg": "^8.23.1"
+  }
+}
