@@ -1,0 +1,98 @@
+digraph ER {
+  graph [rankdir=LR, fontname="Helvetica", fontsize=12, nodesep=0.55, ranksep=1.1, pad=0.3, bgcolor="white", label="Airline Fare Intelligence Platform - ER diagram (PostgreSQL + MongoDB link)", labelloc=t];
+  node  [shape=plain, fontname="Helvetica", fontsize=11];
+  edge  [fontname="Helvetica", fontsize=10, color="#334155", arrowhead=crow, arrowtail=none, dir=both, arrowtail=tee];
+
+  airports [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD BGCOLOR="#1e3a8a"><FONT COLOR="white"><B>airports</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B> iata_code CHAR(3)</TD></TR>
+      <TR><TD ALIGN="LEFT">city VARCHAR(100)</TD></TR>
+      <TR><TD ALIGN="LEFT">country VARCHAR(100)</TD></TR>
+    </TABLE>>];
+
+  airlines [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD BGCOLOR="#1e3a8a"><FONT COLOR="white"><B>airlines</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B> iata_code CHAR(2)</TD></TR>
+      <TR><TD ALIGN="LEFT">name VARCHAR(100) UNIQUE</TD></TR>
+    </TABLE>>];
+
+  routes [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD BGCOLOR="#1e3a8a"><FONT COLOR="white"><B>routes</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B> route_id INT (identity)</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B> origin_iata CHAR(3)</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B> dest_iata CHAR(3)</TD></TR>
+      <TR><TD ALIGN="LEFT"><I>UNIQUE(origin, dest), origin &lt;&gt; dest</I></TD></TR>
+    </TABLE>>];
+
+  users [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD BGCOLOR="#1e3a8a"><FONT COLOR="white"><B>users</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B> user_id INT (identity)</TD></TR>
+      <TR><TD ALIGN="LEFT">email VARCHAR(255) UNIQUE</TD></TR>
+      <TR><TD ALIGN="LEFT">password_hash TEXT (bcrypt only)</TD></TR>
+      <TR><TD ALIGN="LEFT">role ('admin' | 'customer')</TD></TR>
+      <TR><TD ALIGN="LEFT">created_at TIMESTAMPTZ</TD></TR>
+    </TABLE>>];
+
+  fare_snapshots [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD BGCOLOR="#1e3a8a"><FONT COLOR="white"><B>fare_snapshots</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B> snapshot_id BIGINT (identity)</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B> route_id INT</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B> airline_iata CHAR(2)</TD></TR>
+      <TR><TD ALIGN="LEFT">cabin_class (4 allowed values)</TD></TR>
+      <TR><TD ALIGN="LEFT">price NUMERIC(10,2) &gt; 0</TD></TR>
+      <TR><TD ALIGN="LEFT">flight_date DATE</TD></TR>
+      <TR><TD ALIGN="LEFT">scraped_at TIMESTAMPTZ</TD></TR>
+    </TABLE>>];
+
+  raw_scrape_refs [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD BGCOLOR="#0f766e"><FONT COLOR="white"><B>raw_scrape_refs</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK, FK</B> snapshot_id BIGINT</TD></TR>
+      <TR><TD ALIGN="LEFT">mongo_doc_id CHAR(24) (ObjectId)</TD></TR>
+    </TABLE>>];
+
+  watchlists [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD BGCOLOR="#1e3a8a"><FONT COLOR="white"><B>watchlists</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B> watchlist_id INT (identity)</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B> user_id INT</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B> route_id INT</TD></TR>
+      <TR><TD ALIGN="LEFT">cabin_class, target_price</TD></TR>
+      <TR><TD ALIGN="LEFT"><I>UNIQUE(user, route, cabin)</I></TD></TR>
+    </TABLE>>];
+
+  alerts [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD BGCOLOR="#1e3a8a"><FONT COLOR="white"><B>alerts</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B> alert_id INT (identity)</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B> watchlist_id INT</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B> fare_snapshot_id BIGINT</TD></TR>
+      <TR><TD ALIGN="LEFT">triggered_at TIMESTAMPTZ</TD></TR>
+      <TR><TD ALIGN="LEFT"><I>UNIQUE(watchlist, snapshot)</I></TD></TR>
+    </TABLE>>];
+
+  mongo [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4" STYLE="dashed">
+      <TR><TD BGCOLOR="#15803d"><FONT COLOR="white"><B>MongoDB: raw_fare_payloads</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT">_id ObjectId</TD></TR>
+      <TR><TD ALIGN="LEFT">route_id, origin, destination</TD></TR>
+      <TR><TD ALIGN="LEFT">source, scraped_at</TD></TR>
+      <TR><TD ALIGN="LEFT">data[ ] (nested Amadeus offers)</TD></TR>
+    </TABLE>>];
+
+  routes -> airports [label="origin (N:1)", headlabel="", arrowhead=tee, arrowtail=crow];
+  routes -> airports [label="destination (N:1)", arrowhead=tee, arrowtail=crow, constraint=false];
+  fare_snapshots -> routes   [label="observed on (N:1)", arrowhead=tee, arrowtail=crow];
+  fare_snapshots -> airlines [label="operated by (N:1)", arrowhead=tee, arrowtail=crow];
+  raw_scrape_refs -> fare_snapshots [label="1:1", arrowhead=tee, arrowtail=tee];
+  watchlists -> users  [label="owns (N:1)", arrowhead=tee, arrowtail=crow];
+  watchlists -> routes [label="watches (N:1)", arrowhead=tee, arrowtail=crow];
+  alerts -> watchlists     [label="raised for (N:1)", arrowhead=tee, arrowtail=crow];
+  alerts -> fare_snapshots [label="caused by (N:1)", arrowhead=tee, arrowtail=crow];
+  raw_scrape_refs -> mongo [label="mongo_doc_id = _id\n(N:1, cross-database link)", style=dashed, color="#15803d", fontcolor="#15803d", arrowhead=none, arrowtail=none];
+}
